@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 *.log
+*.log.*
 _to_delete/
 # never commit credentials or personal state
 client_secret.json

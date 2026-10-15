@@ -29,6 +29,7 @@ import threading
 import time
 import tkinter as tk
 from datetime import datetime, timedelta, timezone
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from tkinter import messagebox
 
@@ -215,10 +216,14 @@ class App:
             get = lambda: gcal_api.fetch_meetings(BASE, only_meet=self.cfg["only_meet"])
             auth_error = (gcal_api.AuthRequired,)
         fails = 0
+        last_n, last_logged = None, 0.0
         while True:
             try:
                 self.meetings = get()
-                logging.info("refreshed: %d upcoming meetings", len(self.meetings))
+                n = len(self.meetings)
+                if n != last_n or time.time() - last_logged > 3600:   # log changes + an hourly heartbeat only
+                    logging.info("refreshed: %d upcoming meetings", n)
+                    last_n, last_logged = n, time.time()
                 fails, wait = 0, period
                 self.need_auth = self.auth_warned = False
             except auth_error as e:                         # sign-in gone: ask the user once
@@ -332,7 +337,7 @@ def single_instance(timeout=8):
 if __name__ == "__main__":
     a = sys.argv[1:]
     BASE.mkdir(parents=True, exist_ok=True)
-    handlers = [logging.FileHandler(LOG, encoding="utf-8")]
+    handlers = [RotatingFileHandler(LOG, maxBytes=200_000, backupCount=1, encoding="utf-8")]   # <= ~400 KB total
     if sys.stderr is not None:                      # console run (python.exe), not pythonw
         handlers.append(logging.StreamHandler())
     logging.basicConfig(level=logging.INFO, handlers=handlers,

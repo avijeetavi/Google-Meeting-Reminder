@@ -8,5 +8,3 @@ client_secret.json
 token.json
 state.json
 config.json
-# local notes for Claude sessions (contains personal context)
-CLAUDE.md

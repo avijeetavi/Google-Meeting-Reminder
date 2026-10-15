@@ -22,24 +22,42 @@ sc, c = Scene(F()), Fake()
 for deg in range(-MAX_TILT_DEG, MAX_TILT_DEG + 1, 2):
     for minutes in range(10, -5, -1):
         for title in ("Standup", "A very long meeting title " * 6):
-            r = sc.build(c, 900.0, 500.0, math.radians(deg), minutes, title, "Starts 7:14 PM", True)
+            r = sc.build(c, 900.0, 500.0, math.radians(deg), minutes, title, "Starts 7:14 PM")
             card = r["card"]
-            names = ("join", "cancel") if minutes <= 0 else ("join", "snooze", "cancel")
+            assert "join" not in r                                # no Join button any more
+            names = ("cancel",) if minutes <= 0 else ("snooze", "cancel")
             assert ("snooze" in r) == (minutes > 0), minutes     # no Snooze once started
             for n in names:
                 b = r[n]
                 assert card[0] < b[0] < b[2] < card[2] and card[1] < b[1] < b[3] < card[3]
-            assert r["join"][2] < r["cancel"][0]
-            if "snooze" in r:
-                assert r["join"][2] < r["snooze"][0] < r["snooze"][2] < r["cancel"][0]
+            if "snooze" in r:                                     # evenly spaced, centred pair
+                sn, ca = r["snooze"], r["cancel"]
+                assert sn[2] < ca[0] and abs((ca[0] - sn[2]) - sc.BTN_GAP) < 1e-6
+                assert abs((sn[2] - sn[0]) - (ca[2] - ca[0])) < 1e-6          # same width
+                assert abs(((sn[0] + ca[2]) / 2) - (card[0] + card[2]) / 2) < 1e-6   # centred
+            else:
+                assert abs(((r["cancel"][0] + r["cancel"][2]) / 2) - (card[0] + card[2]) / 2) < 1e-6
             assert card[2] < 900 - 36 * sc.S           # banner trails behind the plane
-    texts = [i[2]["text"] for i in c.items if i[0] == "text"]
-r = sc.build(c, 900.0, 500.0, 0.0, 0, "x", "s", True)
+r = sc.build(c, 900.0, 500.0, 0.0, 0, "x", "s")
 assert "Meeting started" in [i[2]["text"] for i in c.items if i[0] == "text"]
-r = sc.build(c, 900.0, 500.0, 0.0, -3, "x", "s", True)
+r = sc.build(c, 900.0, 500.0, 0.0, -3, "x", "s")
 assert "Meeting started" in [i[2]["text"] for i in c.items if i[0] == "text"]
-r = sc.build(c, 900.0, 500.0, 0.0, 7, "x", "s", True)
+r = sc.build(c, 900.0, 500.0, 0.0, 7, "x", "s")
 assert "Meeting in 7 min" in [i[2]["text"] for i in c.items if i[0] == "text"]
+
+# 1b. 'meeting started' lamp card: centred, only Cancel, lit and dim differ but share geometry
+cx, cy = 960.0, 516.0
+rl = sc.build_alert(c, cx, cy, "Standup", "Started at 7:14 PM", True); lit_items = list(c.items)
+rd = sc.build_alert(c, cx, cy, "Standup", "Started at 7:14 PM", False); dim_items = list(c.items)
+assert rl == rd and set(rl) == {"card", "cancel"}, rl
+x0, y0, x1, y1 = rl["card"]
+assert abs((x0 + x1) / 2 - cx) < 1e-6 and abs((y0 + y1) / 2 - cy) < 1e-6   # fixed in the centre
+cb = rl["cancel"]
+assert x0 < cb[0] < cb[2] < x1 and abs((cb[0] + cb[2]) / 2 - cx) < 1e-6
+colours = lambda items: [i[2].get("fill") for i in items if i[0] == "text"]
+assert colours(lit_items) != colours(dim_items)                            # the lamp really changes
+assert len(lit_items) > len(dim_items)                                     # glow rings only when lit
+assert "Meeting started" in [i[2]["text"] for i in lit_items if i[0] == "text"]
 
 # 2. routes: straight, bounded, gently tilted, and different every time
 rnd = random.Random(1)

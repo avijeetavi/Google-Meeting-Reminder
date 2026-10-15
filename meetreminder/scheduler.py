@@ -33,7 +33,8 @@ class Scheduler:
 
     def due(self, meetings, now):
         """Return [(meeting, minutes_left)] that should be (re)shown now.
-        minutes_left <= 0 means the meeting has already started."""
+        minutes_left <= 0 means the meeting has already started. A snooze never delays the
+        "started" reminder: at the start time it is shown at once, whatever the snooze says."""
         out = []
         for m in meetings:
             if m.key in self.cancelled:
@@ -41,8 +42,11 @@ class Scheduler:
             secs = (m.start - now).total_seconds()
             if secs > LEAD_MINUTES * 60 or secs <= -GRACE_SECONDS:
                 continue
-            if now < self.snoozed.get(m.key, datetime.min.replace(tzinfo=timezone.utc)):
-                continue
+            until = self.snoozed.get(m.key)
+            if until is not None:
+                if secs > 0 and now < until:
+                    continue                     # still snoozed and the meeting has not started yet
+                self.snoozed.pop(m.key, None)   # snooze over, or the meeting STARTED: ignore snooze
             mins = math.ceil(secs / 60)        # 10..1 before start, 0 and negative once started
             if self.last_bucket.get(m.key) != mins:
                 self.last_bucket[m.key] = mins

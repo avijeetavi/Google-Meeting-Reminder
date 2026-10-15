@@ -1,14 +1,18 @@
-"""Full-screen flight popup. A transparent, click-through overlay where a plane flies
-left -> right along a straight line (a different random line every time), towing a
-banner with the countdown, title, start time and Join / Snooze / Cancel buttons.
-Hover the banner to freeze the flight so the buttons are easy to click."""
+"""Full-screen popup on a transparent, click-through overlay.
+
+Before the meeting starts: a plane flies left -> right along a straight line (a different random
+line every time), towing a banner with the countdown, title, start time and Snooze / Cancel buttons.
+Hover the banner to freeze the flight so the buttons are easy to click.
+
+Once the meeting has started: no flight. A "Meeting started" card is fixed in the centre of the
+screen and blinks like a lamp (bright / dim) with a Cancel button, until Cancelled or 5 min after
+the start. Hovering the card keeps it lit so it is easy to read and click."""
 import logging
 import math
 import sys
 import time
 import tkinter as tk
 import tkinter.font as tkfont
-import webbrowser
 from types import SimpleNamespace
 
 from .scene import Scene, pick_route
@@ -17,6 +21,7 @@ KEY = "#010101"        # colour made transparent on Windows (and click-through)
 FRAME_S = 1 / 60       # fixed 60 fps cadence
 CRUISE_STEP = 2        # px per frame while the whole banner is on screen (120 px/s: readable)
 FAST_STEP = 6          # px per frame while entering / leaving (360 px/s)
+BLINK_ON, BLINK_OFF = 0.7, 0.5   # seconds lit / dim for the "meeting started" lamp
 
 
 def work_area(root):
@@ -52,12 +57,13 @@ def high_res_timer():
 class Popup(tk.Toplevel):
     _last_route = None          # remembered so the next flight takes a different line
 
-    def __init__(self, root, meeting, minutes, on_snooze, on_cancel, on_join):
+    def __init__(self, root, meeting, minutes, on_snooze, on_cancel):
         super().__init__(root)
         high_res_timer()
         self.m = meeting
-        self.cb_snooze, self.cb_cancel, self.cb_join = on_snooze, on_cancel, on_join
+        self.cb_snooze, self.cb_cancel = on_snooze, on_cancel
         self.alive, self.done = True, True
+        self.static, self.lit, self.t_blink = False, True, 0.0   # static = 'meeting started' lamp mode
         self.rects, self.minutes = {}, minutes
         self.x, self.next_t, self.ipos = 0, time.perf_counter(), (0, 0)
 
@@ -94,10 +100,27 @@ class Popup(tk.Toplevel):
         self.title_text = self.m.title
         verb = "Started at" if minutes <= 0 else "Starts at"
         self.sub_text = f"{verb} {local}" + ("  ·  Google Meet" if self.m.link else "")
-        if self.done:                              # previous pass finished: new flight
+        if minutes <= 0:                           # started: fixed, blinking card in the centre
+            if not self.static:
+                self._enter_static()
+        elif self.done:                            # previous pass finished: new flight
             self._start_flight()
         else:                                      # still flying/frozen: just refresh text
             self._rebuild()
+
+    def _enter_static(self):
+        """Stop any flight and show the centred blinking 'Meeting started' card."""
+        self.static, self.done = True, True        # done=True also idles the flight code
+        self.lit, self.t_blink = True, time.perf_counter()
+        logging.info("started-card: %s", self.m.title)
+        self.deiconify()
+        self.attributes("-topmost", True)
+        self.lift()
+        self._draw_static()
+
+    def _draw_static(self):
+        self.rects = self.scene.build_alert(self.canvas, self.sw / 2, self.sh / 2,
+                                            self.title_text, self.sub_text, self.lit)
 
     def _start_flight(self):
         yl, yr = pick_route(self.sw, self.sh, Scene.CARD_H, Popup._last_route)
@@ -119,8 +142,7 @@ class Popup(tk.Toplevel):
         x, y = self._line()
         self.ipos = (round(x), round(y))
         self.rects = self.scene.build(self.canvas, self.ipos[0], self.ipos[1], self.theta,
-                                      self.minutes, self.title_text, self.sub_text,
-                                      bool(self.m.link))
+                                      self.minutes, self.title_text, self.sub_text)
 
     # ---- animation --------------------------------------------------
     def _hovering(self):
@@ -151,6 +173,14 @@ class Popup(tk.Toplevel):
     def _animate(self):
         if not self.alive:
             return
+        if self.static:                            # lamp: lit BLINK_ON s, dim BLINK_OFF s, repeat
+            phase = (time.perf_counter() - self.t_blink) % (BLINK_ON + BLINK_OFF)
+            lit = phase < BLINK_ON or self._hovering()
+            if lit != self.lit:
+                self.lit = lit
+                self._draw_static()
+            self.after(40, self._animate)
+            return
         if self.done:
             self.after(250, self._animate)
             return
@@ -178,17 +208,11 @@ class Popup(tk.Toplevel):
 
     # ---- actions ----------------------------------------------------
     def _click(self, e):
-        for name in ("join", "snooze", "cancel"):
+        for name in ("snooze", "cancel"):
             r = self.rects.get(name)
             if r and r[0] <= e.x <= r[2] and r[1] <= e.y <= r[3]:
-                if name == "join":
-                    if self.m.link:
-                        webbrowser.open(self.m.link)
-                        self.close(); self.cb_join(self.m)
-                elif name == "snooze":
-                    self.close(); self.cb_snooze(self.m)
-                else:
-                    self.close(); self.cb_cancel(self.m)
+                self.close()
+                (self.cb_snooze if name == "snooze" else self.cb_cancel)(self.m)
                 return
 
     def close(self):

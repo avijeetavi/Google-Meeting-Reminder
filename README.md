@@ -1,15 +1,17 @@
 # Meet Reminder (Windows)
 
-Background app that warns you 10 minutes before every Google Meet call. A plane flies left to
-right across your whole screen on a random straight line, towing a banner: countdown, meeting
-title, start time and **Join / Snooze 5 min / Cancel** buttons. It flies again every minute.
-Hover the banner to freeze it so the buttons are easy to click.
+Background app that reminds you before your Google Calendar meetings (about 10 minutes before, then every minute
+until the start). Before the start, a plane flies left to right across your whole screen on a random straight line,
+towing a banner: countdown, meeting title, start time and **Snooze 5 min / Cancel** buttons. Hover the banner to
+freeze it so the buttons are easy to click. With the Google Calendar API source it reminds only for Google Meet calls;
+with the temporary Chrome pop-up source every event gets a reminder.
 
 * **Cancel** - no more reminders for that meeting.
-* **Snooze 5 min** - silent for 5 minutes, then reminders resume every minute.
-* **Join** - opens the Meet link and stops reminders for that meeting.
-* From the start time the banner says **"Meeting started"** (no Snooze); reminders stop 5 minutes after the start.
-* Only one copy ever runs. Cancel/Join close that meeting's popup, not the app.
+* **Snooze 5 min** - silent for 5 minutes, then reminders resume every minute. A snooze never delays the start
+  alert: the moment the meeting starts, the "Meeting started" card appears, whatever the snooze says.
+* **Meeting started** - no flight. A "Meeting started" card is fixed in the centre of the screen and blinks like a
+  lamp (bright / dim) with a Cancel button, until you cancel it or 5 minutes after the start. Hovering keeps it lit.
+* Only one copy ever runs. Cancel/Snooze close that meeting's popup, not the app.
 
 ---
 

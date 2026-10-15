@@ -47,4 +47,21 @@ assert s.due([m], t + timedelta(minutes=5)) == []
 # 5. App started after the meeting began: reminds until start+5 min, then stops
 s = Scheduler(); got = run(s, T0 + timedelta(minutes=32), T0 + timedelta(minutes=40))
 assert [x[1] for x in got] == [-2, -3, -4], got
+
+# 6. Snooze that runs past the start: 'started' is shown AT the start, snooze ignored
+s = Scheduler(); t = T0 + timedelta(minutes=28)                     # meeting at +30
+assert [k for _, k in s.due([m], t)] == [2]
+s.snooze("a", t)                                                    # snooze would last until +33
+assert s.due([m], T0 + timedelta(minutes=29, seconds=59)) == []     # still silent before the start
+assert [k for _, k in s.due([m], T0 + timedelta(minutes=30))] == [0]          # started -> shown at once
+assert "a" not in s.snoozed
+assert [k for _, k in s.due([m], T0 + timedelta(minutes=31))] == [-1]         # then every minute
+# 6b. Snooze pressed at 29:59 (1 s before start): shown at 30:00 right away
+s = Scheduler(); t = T0 + timedelta(minutes=29, seconds=59)
+s.due([m], t); s.snooze("a", t)
+assert [k for _, k in s.due([m], T0 + timedelta(minutes=30))] == [0]
+# 6c. A snooze that ends BEFORE the start still behaves as before
+s = Scheduler(); t = T0 + timedelta(minutes=20); s.due([m], t); s.snooze("a", t)
+assert s.due([m], t + timedelta(minutes=4, seconds=59)) == []
+assert [k for _, k in s.due([m], t + timedelta(minutes=5))] == [5]
 print("all scheduler tests passed")

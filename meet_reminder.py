@@ -294,8 +294,7 @@ class App:
                     pop.update_minutes(mins)           # same popup, new minute
                 else:
                     from meetreminder.popup import Popup
-                    self.popups[m.key] = Popup(self.root, m, mins, self.on_snooze,
-                                               self.on_cancel, self.on_join)
+                    self.popups[m.key] = Popup(self.root, m, mins, self.on_snooze, self.on_cancel)
                 logging.info("reminder: %s in %d min", m.title, mins)
                 self.beep()
             for k in self.sched.expired(meetings, now):
@@ -319,8 +318,6 @@ class App:
 
     def on_cancel(self, m):
         self.sched.cancel(m.key); self.persist()
-
-    on_join = on_cancel   # joining = no more reminders for that meeting
 
     def run(self):
         self.root.mainloop()

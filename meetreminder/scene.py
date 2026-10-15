@@ -53,19 +53,17 @@ class Scene:
         """Distance from the plane's centre x to the banner's far-left edge."""
         return 36 * self.S + self.ROPE + self.CARD_W + 8
 
-    BTN_W, BTN_H, BTN_GAP = 130, 28, 16
+    BTN_W, BTN_H = 130, 28
 
-    def _buttons(self, left, right, bot, minutes):
-        """Hit rectangles for the buttons, centred in the card: Snooze + Cancel before the
-        start (equal width, evenly spaced), Cancel alone once the meeting has started."""
-        names = ["snooze", "cancel"] if minutes > 0 else ["cancel"]
-        total = len(names) * self.BTN_W + (len(names) - 1) * self.BTN_GAP
-        x = (left + right) / 2 - total / 2
+    def _buttons(self, left, right, bot, minutes, pad=18):
+        """Hit rectangles along the bottom edge of the card: Snooze at the bottom-LEFT and
+        Cancel at the bottom-RIGHT (equal width). Once the meeting has started only Cancel
+        is shown, still at the bottom-right."""
         y1 = bot - 12
         out = {}
-        for n in names:
-            out[n] = (x, y1 - self.BTN_H, x + self.BTN_W, y1)
-            x += self.BTN_W + self.BTN_GAP
+        if minutes > 0:
+            out["snooze"] = (left + pad, y1 - self.BTN_H, left + pad + self.BTN_W, y1)
+        out["cancel"] = (right - pad - self.BTN_W, y1 - self.BTN_H, right - pad, y1)
         return out
 
     def _fit(self, font, text, width):

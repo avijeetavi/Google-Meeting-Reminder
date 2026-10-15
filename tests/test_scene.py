@@ -30,13 +30,13 @@ for deg in range(-MAX_TILT_DEG, MAX_TILT_DEG + 1, 2):
             for n in names:
                 b = r[n]
                 assert card[0] < b[0] < b[2] < card[2] and card[1] < b[1] < b[3] < card[3]
-            if "snooze" in r:                                     # evenly spaced, centred pair
-                sn, ca = r["snooze"], r["cancel"]
-                assert sn[2] < ca[0] and abs((ca[0] - sn[2]) - sc.BTN_GAP) < 1e-6
-                assert abs((sn[2] - sn[0]) - (ca[2] - ca[0])) < 1e-6          # same width
-                assert abs(((sn[0] + ca[2]) / 2) - (card[0] + card[2]) / 2) < 1e-6   # centred
-            else:
-                assert abs(((r["cancel"][0] + r["cancel"][2]) / 2) - (card[0] + card[2]) / 2) < 1e-6
+            ca = r["cancel"]
+            assert abs((card[2] - ca[2]) - 18) < 1e-6                    # Cancel: bottom-RIGHT corner
+            assert abs((card[3] - ca[3]) - 12) < 1e-6
+            if "snooze" in r:                                            # Snooze: bottom-LEFT corner
+                sn = r["snooze"]
+                assert abs((sn[0] - card[0]) - 18) < 1e-6 and abs(sn[3] - ca[3]) < 1e-6
+                assert sn[2] < ca[0] and abs((sn[2] - sn[0]) - (ca[2] - ca[0])) < 1e-6
             assert card[2] < 900 - 36 * sc.S           # banner trails behind the plane
 r = sc.build(c, 900.0, 500.0, 0.0, 0, "x", "s")
 assert "Meeting started" in [i[2]["text"] for i in c.items if i[0] == "text"]
@@ -53,7 +53,7 @@ assert rl == rd and set(rl) == {"card", "cancel"}, rl
 x0, y0, x1, y1 = rl["card"]
 assert abs((x0 + x1) / 2 - cx) < 1e-6 and abs((y0 + y1) / 2 - cy) < 1e-6   # fixed in the centre
 cb = rl["cancel"]
-assert x0 < cb[0] < cb[2] < x1 and abs((cb[0] + cb[2]) / 2 - cx) < 1e-6
+assert x0 < cb[0] < cb[2] < x1 and cb[2] > cx                           # Cancel sits bottom-right
 colours = lambda items: [i[2].get("fill") for i in items if i[0] == "text"]
 assert colours(lit_items) != colours(dim_items)                            # the lamp really changes
 assert len(lit_items) > len(dim_items)                                     # glow rings only when lit

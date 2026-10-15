@@ -159,7 +159,7 @@ python tests/test_scene.py
 
 * Layout: `meet_reminder.py` is the entry point and app (stays in the project root, so every command above is unchanged).
   `meetreminder/` holds the modules: `scheduler.py` timing rules, `gcal_api.py` Google Calendar API source,
-  `calendar_source.py` optional iCal-URL source, `notif_source.py` temporary Chrome pop-up source, `scene.py` plane +
+  `notif_source.py` temporary Chrome pop-up source, `scene.py` plane +
   banner drawing and random routes, `popup.py` the full-screen animation window. `tests/` has the tests, `scripts/` the
   .bat helpers, `docs/` the setup guide.
 * Tuning: `CRUISE_STEP` / `FAST_STEP` in `meetreminder/popup.py` (speed), `Scene.S` in `meetreminder/scene.py` (plane size),

@@ -2,6 +2,3 @@
 google-auth>=2.20
 google-auth-oauthlib>=1.0
 requests>=2.31
-# Only needed if you set "source": "ics" in config.json (secret iCal URL fallback):
-# icalendar>=5.0
-# recurring-ical-events>=2.1

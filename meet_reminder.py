@@ -11,7 +11,7 @@ Testing:
       python  meet_reminder.py --probe-notifications show what the Chrome pop-up source can see
 
 Google Calendar API source (once IT provides client_secret.json):
-      python  meet_reminder.py --source=api|notif|ics   choose the calendar source (--start selects notif)
+      python  meet_reminder.py --source=api|notif   choose the calendar source (--start selects notif)
       python  meet_reminder.py --auth       sign in to Google Calendar, one time
       python  meet_reminder.py --signout    delete the saved Google sign-in
       python  meet_reminder.py --install    auto-start + run now, keeping the chosen source
@@ -30,7 +30,7 @@ import time
 import tkinter as tk
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from tkinter import simpledialog, messagebox
+from tkinter import messagebox
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from meetreminder.scheduler import Scheduler, Meeting
@@ -40,8 +40,8 @@ BASE = Path(os.environ.get("APPDATA", Path.home() / ".config")) / APP
 CONFIG, STATE = BASE / "config.json", BASE / "state.json"
 LOG = Path(__file__).resolve().parent / "meet_reminder.log"   # next to the code
 REFRESH_SECONDS, TICK_MS, PORT = 300, 1000, 47653
-DEFAULT_CFG = {"source": "api",      # "api" = official Google Calendar API (default), "ics" = secret iCal URL
-               "ics_url": "", "my_email": "", "only_meet": True}
+DEFAULT_CFG = {"source": "api",      # "api" = official Google Calendar API (default), "notif" = Chrome pop-ups
+               "only_meet": True}
 
 
 def load_json(p, default):
@@ -103,14 +103,11 @@ def status():
     if cfg["source"] == "notif":
         print("Calendar source  : Chrome Calendar pop-ups (temporary; Chrome must be running)")
         return
-    if cfg["source"] == "ics":
-        print("Calendar source  : secret iCal URL -", "set" if cfg["ics_url"] else "NOT set (the app asks for it when started with --install)")
-    else:
-        print("Calendar source  : Google Calendar API -",
-              "signed in" if (BASE / "token.json").exists() else "NOT signed in (run --auth)")
-        print("client_secret    :", "found" if ((BASE / "client_secret.json").exists() or
-              (Path(__file__).resolve().parent / "client_secret.json").exists())
-              else "missing (see GOOGLE_API_SETUP.md)")
+    print("Calendar source  : Google Calendar API -",
+          "signed in" if (BASE / "token.json").exists() else "NOT signed in (run --auth)")
+    print("client_secret    :", "found" if ((BASE / "client_secret.json").exists() or
+          (Path(__file__).resolve().parent / "client_secret.json").exists())
+          else "missing (see docs/GOOGLE_API_SETUP.md)")
     try:
         print("Last log lines   :")
         for line in LOG.read_text("utf-8").splitlines()[-6:]:
@@ -159,6 +156,8 @@ def uninstall():
 class App:
     def __init__(self, demo=False, lock=None, demo_minutes=10.0):
         self.cfg = {**DEFAULT_CFG, **load_json(CONFIG, DEFAULT_CFG)}
+        if self.cfg["source"] not in ("api", "notif"):       # e.g. a leftover value from an old version
+            self.cfg["source"] = "api"
         self.root = tk.Tk()
         self.root.withdraw()
         try:
@@ -189,10 +188,6 @@ class App:
         """Make sure there is a working calendar source before the app starts."""
         if self.cfg["source"] == "notif":                    # temporary source, nothing to set up
             return
-        if self.cfg["source"] == "ics":
-            if not self.cfg["ics_url"]:
-                self.ask_url()
-            return
         try:
             from meetreminder import gcal_api
             if gcal_api.load_credentials(BASE) is None:          # first run: sign in via browser
@@ -209,28 +204,12 @@ class App:
             messagebox.showerror("Meet Reminder", f"Google sign-in failed:\n{e}")
             sys.exit(1)
 
-    def ask_url(self):
-        url = simpledialog.askstring(
-            "Meet Reminder setup",
-            "Paste your Google Calendar 'Secret address in iCal format'\n"
-            "(Calendar settings > your calendar > Integrate calendar):", parent=self.root)
-        if not url:
-            messagebox.showwarning("Meet Reminder", "No URL entered - exiting.")
-            sys.exit(0)
-        self.cfg["ics_url"] = url.strip()
-        save_json(CONFIG, self.cfg)
-
     def refresh_loop(self):
         period = REFRESH_SECONDS
         if self.cfg["source"] == "notif":                   # TEMPORARY: Chrome Calendar pop-ups (notif_source.py)
             from meetreminder.notif_source import NotificationSource
             get = NotificationSource().poll
             auth_error, period = (), 15
-        elif self.cfg["source"] == "ics":
-            from meetreminder.calendar_source import fetch_ics, parse_meetings
-            get = lambda: parse_meetings(fetch_ics(self.cfg["ics_url"]), only_meet=self.cfg["only_meet"],
-                                         my_email=self.cfg["my_email"])
-            auth_error = ()
         else:
             from meetreminder import gcal_api
             get = lambda: gcal_api.fetch_meetings(BASE, only_meet=self.cfg["only_meet"])
@@ -375,8 +354,8 @@ if __name__ == "__main__":
         quickstart()
     elif any(x.startswith("--source=") for x in a):
         v = next(x.split("=", 1)[1] for x in a if x.startswith("--source="))
-        if v not in ("api", "notif", "ics"):
-            sys.exit("--source must be api, notif or ics")
+        if v not in ("api", "notif"):
+            sys.exit("--source must be api or notif")
         cfg = {**DEFAULT_CFG, **load_json(CONFIG, {})}
         cfg["source"] = v
         save_json(CONFIG, cfg)

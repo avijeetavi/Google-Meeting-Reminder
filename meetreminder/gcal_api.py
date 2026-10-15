@@ -1,4 +1,4 @@
-"""Official Google Calendar API source (read-only). Replaces the secret iCal URL.
+"""Official Google Calendar API source (read-only).
 
 * Scope: calendar.events.readonly (can read events, cannot change or delete anything).
 * Sign-in: standard OAuth "installed app" flow. Your browser opens, you sign in with your

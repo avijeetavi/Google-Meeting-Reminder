@@ -106,6 +106,7 @@ a copy that is already running, so duplicates cannot pile up.
 
 | File | Does the same as |
 |---|---|
+| `scripts\Start-MeetReminder.bat` | `--start` (starts in the background and sets up auto-start) |
 | `scripts\Stop-MeetReminder.bat` | `--stop` (stops and removes auto-start) |
 | `scripts\Status-MeetReminder.bat` | `--status` |
 

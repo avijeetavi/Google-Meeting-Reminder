@@ -183,23 +183,26 @@ def calendar_notifications(db_path=None, now=None, max_age_hours=3):
 
 
 class NotificationSource:
-    """Same shape as the other sources: poll() -> list[Meeting]."""
+    """Same shape as the other sources: poll() -> list[Meeting].
+
+    Meetings learned from pop-ups are remembered in memory until they are over, so dismissing or
+    clearing the Windows pop-up does NOT stop the reminders. (A restart of the app forgets them.)"""
+
+    KEEP_SECONDS = 900          # forget a meeting 15 min after its start
 
     def __init__(self, default_lead=10, db_path=None, max_age_hours=3):
         self.default_lead, self.db_path, self.max_age_hours = default_lead, db_path, max_age_hours
+        self._known = []
 
     def poll(self, now=None):
-        """Meetings learned from Calendar pop-ups. Remembered in memory until they are over, so dismissing
-        or clearing the Windows pop-up does NOT stop the reminders."""
         now = now or datetime.now(timezone.utc)
         found = [to_meeting(p, when, self.default_lead)
                  for p, when in calendar_notifications(self.db_path, now, self.max_age_hours)]
         found.sort(key=lambda m: m.start)
-        known = getattr(self, "_known", [])
-        known = [m for m in known if (now - m.start).total_seconds() < 900]      # drop long-finished ones
+        known = [m for m in self._known if (now - m.start).total_seconds() < self.KEEP_SECONDS]
         for m in found:
             if not any(x.title == m.title and abs((x.start - m.start).total_seconds()) <= 150 for x in known):
-                if (now - m.start).total_seconds() < 900:
+                if (now - m.start).total_seconds() < self.KEEP_SECONDS:
                     known.append(m)
         self._known = known
         return list(known)

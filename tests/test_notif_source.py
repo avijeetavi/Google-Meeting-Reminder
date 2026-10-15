@@ -77,4 +77,5 @@ try: ns.calendar_notifications(bad, NOW); raise SystemExit("expected RuntimeErro
 except RuntimeError as e: assert "unexpected" in str(e)
 try: ns.calendar_notifications(bad.with_name("nope.db"), NOW); raise SystemExit("expected FileNotFoundError")
 except FileNotFoundError: pass
+
 print("notif_source tests passed")

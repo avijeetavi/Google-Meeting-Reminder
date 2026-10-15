@@ -192,3 +192,8 @@ Limits: it only learns about a meeting when Chrome shows its pop-up, so the 10-m
 the start time is estimated from the pop-up text ("in 5 minutes"). The Windows notification database layout and
 the pop-up text format are unverified on your machine - run `--probe-notifications` first. If your security software flags
 it, stop and ask IT; do not work around it.
+
+## Contributing and licence
+
+Pull requests are welcome - see `CONTRIBUTING.md`. Direct pushes to `main` are not accepted; changes are merged after
+review. Released under the MIT licence (`LICENSE`).

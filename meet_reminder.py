@@ -1,17 +1,23 @@
 """Meet Reminder - background Google Meet notifier (Windows-first, pure Tkinter).
 
-Run:  pythonw meet_reminder.py            (background, no console)
-      python  meet_reminder.py --setup    (change calendar URL)
-      python  meet_reminder.py --demo     (fake meeting in 10 min to preview)
-      python  meet_reminder.py --demo-minutes=-1   (fake meeting that started 1 min ago)
-      python  meet_reminder.py --install  (auto-start at login)
-      python  meet_reminder.py --auth     (sign in to Google Calendar, one time)
-      python  meet_reminder.py --signout  (delete the saved Google sign-in)
-      python  meet_reminder.py --status   (is auto-start set up? is it running?)
-      python  meet_reminder.py --quickstart           (ONE command: notif source + auto-start + run now)
-      python  meet_reminder.py --source=api|notif|ics   (choose calendar source; notif = Chrome pop-ups, temporary)
-      python  meet_reminder.py --probe-notifications    (show what notif_source can see; stdlib only)
-      python  meet_reminder.py --uninstall
+Daily use (PowerShell, in the project folder):
+      python  meet_reminder.py --start    start in the background + auto-start at every sign-in
+      python  meet_reminder.py --stop     stop the app AND remove auto-start
+      python  meet_reminder.py --status   is it running? is auto-start set up?
+
+Testing:
+      python  meet_reminder.py --demo                fake meeting in 10 min, to preview the plane
+      python  meet_reminder.py --demo-minutes=-1     fake meeting that started 1 min ago
+      python  meet_reminder.py --probe-notifications show what the Chrome pop-up source can see
+
+Google Calendar API source (once IT provides client_secret.json):
+      python  meet_reminder.py --source=api|notif|ics   choose the calendar source (--start selects notif)
+      python  meet_reminder.py --auth       sign in to Google Calendar, one time
+      python  meet_reminder.py --signout    delete the saved Google sign-in
+      python  meet_reminder.py --install    auto-start + run now, keeping the chosen source
+
+Low level: `pythonw meet_reminder.py` runs in the background without a console window.
+(--uninstall = --stop, --quickstart = --start: old names, still accepted.)
 """
 import json
 import logging
@@ -82,12 +88,12 @@ def quickstart():
         print(f"2/3 WARNING: could not read the notification database yet: {e}")
     print("3/3 Installing auto-start and starting in the background ...")
     install()
-    print("\nDone. You can close this window. Check any time with: python meet_reminder.py --status")
+    print("\nDone. You can close this window. Check: python meet_reminder.py --status   Stop: python meet_reminder.py --stop")
 
 
 def status():
     vbs = startup_vbs() if sys.platform == "win32" else None
-    print("Auto-start entry :", ("present - " + str(vbs)) if vbs and vbs.exists() else "NOT installed (run --install)")
+    print("Auto-start entry :", ("present - " + str(vbs)) if vbs and vbs.exists() else "NOT installed (run --start)")
     try:
         socket.create_connection(("127.0.0.1", PORT), timeout=2).close()
         print("Running now      : yes (one instance)")
@@ -98,7 +104,7 @@ def status():
         print("Calendar source  : Chrome Calendar pop-ups (temporary; Chrome must be running)")
         return
     if cfg["source"] == "ics":
-        print("Calendar source  : secret iCal URL -", "set" if cfg["ics_url"] else "NOT set (run --setup)")
+        print("Calendar source  : secret iCal URL -", "set" if cfg["ics_url"] else "NOT set (the app asks for it when started with --install)")
     else:
         print("Calendar source  : Google Calendar API -",
               "signed in" if (BASE / "token.json").exists() else "NOT signed in (run --auth)")
@@ -147,6 +153,7 @@ def uninstall():
         print("Removed auto-start.")
     except FileNotFoundError:
         print("Auto-start was not installed.")
+    print("Stopped the running app." if ask_running_instance_to_quit() else "No running app found.")
 
 
 class App:
@@ -367,7 +374,7 @@ if __name__ == "__main__":
     elif "--probe-notifications" in a:
         from meetreminder import notif_source
         notif_source.probe()
-    elif "--quickstart" in a:
+    elif "--start" in a or "--quickstart" in a:      # --quickstart = old name, still accepted
         quickstart()
     elif any(x.startswith("--source=") for x in a):
         v = next(x.split("=", 1)[1] for x in a if x.startswith("--source="))
@@ -377,9 +384,8 @@ if __name__ == "__main__":
         cfg["source"] = v
         save_json(CONFIG, cfg)
         print(f"Calendar source set to '{v}'. Restart with: python meet_reminder.py --install")
-    elif "--stop" in a:
-        print("Asked the running instance to quit." if ask_running_instance_to_quit()
-              else "No running instance found.")
+    elif "--stop" in a:                              # stop the app AND remove auto-start
+        uninstall()
     else:
         lock = single_instance()
         if lock is None:
@@ -388,8 +394,6 @@ if __name__ == "__main__":
                   "  Get-CimInstance Win32_Process | Where CommandLine -like '*meet_reminder*' |"
                   " ForEach { Stop-Process -Id $_.ProcessId -Force }")
             sys.exit(1)
-        if "--setup" in a:
-            CONFIG.unlink(missing_ok=True)
         dm = next((float(x.split("=", 1)[1]) for x in a if x.startswith("--demo-minutes=")), None)
         App(demo=("--demo" in a or dm is not None), lock=lock,
             demo_minutes=10.0 if dm is None else dm).run()

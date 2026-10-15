@@ -66,13 +66,14 @@ A plane should fly across your screen. If it does, the installation is fine.
 * **Temporary, no admin needed - Chrome Calendar pop-ups (one command for everything):**
 
   ```powershell
-  python meet_reminder.py --quickstart
+  python meet_reminder.py --start
   ```
 
   It selects this source, checks that Windows' notification data is readable, installs auto-start and starts the
   app in the background. You can close PowerShell afterwards. Details in the last section of this file.
 
-**Step 5 - run it in the background and start it at every login:**
+**Step 5 - Google API route only: run it in the background and start it at every login**
+(the pop-up route already did this in step 4 with `--start`):
 
 ```powershell
 python meet_reminder.py --install
@@ -91,7 +92,8 @@ Run from the project folder, with the venv active (`(.venv)` in the prompt):
 | Run for real, in this terminal (keep the window open) | `python meet_reminder.py` |
 | Run for real, no console window | `.\.venv\Scripts\pythonw.exe meet_reminder.py` |
 | Check status (running? auto-start set up? last log lines) | `python meet_reminder.py --status` |
-| Stop the running copy | `python meet_reminder.py --stop` |
+| Start in the background + auto-start at every sign-in | `python meet_reminder.py --start` |
+| Stop the app and remove auto-start | `python meet_reminder.py --stop` |
 | Sign in to Google Calendar (one time) and test-read 24 h | `python meet_reminder.py --auth` |
 | Sign out (delete the saved token) | `python meet_reminder.py --signout` |
 
@@ -102,7 +104,7 @@ a copy that is already running, so duplicates cannot pile up.
 
 | File | Does the same as |
 |---|---|
-| `scripts\Stop-MeetReminder.bat` | `--stop` |
+| `scripts\Stop-MeetReminder.bat` | `--stop` (stops and removes auto-start) |
 | `scripts\Status-MeetReminder.bat` | `--status` |
 
 **Heads-up for managed (company) laptops:** the installer writes a hidden Startup entry and launches
@@ -113,16 +115,36 @@ own Google Calendar events (read-only API scope `calendar.events.readonly`, only
 shows a local popup, writes `config.json`/`state.json`/`token.json` under `%APPDATA%\MeetReminder` and a log in
 this folder; installs only `google-auth`, `google-auth-oauthlib` and `requests`.
 
-## 4. Auto-start at sign-in (needs the .bat or `--install`; may be blocked, see above)
+## 4. Auto-start at sign-in (`--start` or `--install`; may be blocked, see above)
 
 ```powershell
-python meet_reminder.py --install      # registers auto-start and starts now
-python meet_reminder.py --uninstall    # removes auto-start
+python meet_reminder.py --start        # pop-up source: registers auto-start and starts now
+python meet_reminder.py --install      # same, but keeps the chosen source (use after --source=api and --auth)
+python meet_reminder.py --stop         # stops the running app AND removes auto-start 
 ```
 
 It adds `MeetReminder.vbs` to `shell:startup` (Win+R). After restart/shutdown it starts at the next
 sign-in. Sleep/hibernate keep it running; on wake it refreshes the calendar immediately and retries
 quickly if the network is not back yet. Without auto-start, just run section 2 yourself after each boot.
+
+## 4b. Stop it / remove it completely
+
+| Goal | Command (PowerShell, in the project folder) |
+|---|---|
+| Start (also after you stopped it) | `python meet_reminder.py --start` |
+| Stop the app AND remove auto-start | `python meet_reminder.py --stop` |
+| Check the state | `python meet_reminder.py --status` (after `--stop`: "Running now: no" and auto-start "NOT installed") |
+| Last resort if `--stop` finds nothing but a `pythonw.exe` is still running | see below |
+
+After a restart nothing needs to be run: once `--start` has been used, the app starts by itself at every sign-in,
+until you run `--stop`.
+
+```powershell
+Get-CimInstance Win32_Process | Where-Object CommandLine -like '*meet_reminder*' | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+```
+
+To also delete the saved settings and sign-in, remove the folder `%APPDATA%\MeetReminder` (paste it in the File Explorer
+address bar). To sign out of Google only, use `python meet_reminder.py --signout`.
 
 ## 5. Tests (no GUI needed)
 
@@ -158,7 +180,7 @@ showed as Windows notifications (read-only; only calendar.google.com pop-ups are
 read or printed). Delete this file and its `notif` hooks once `client_secret.json` is available.
 
 ```
-python meet_reminder.py --quickstart            # ONE command: select it, check it, auto-start, run now
+python meet_reminder.py --start            # ONE command: select it, check it, auto-start, run now
 python meet_reminder.py --probe-notifications   # optional diagnostics (only if nothing shows up)
 python meet_reminder.py --source=api            # go back to the official API (then --install)
 ```
